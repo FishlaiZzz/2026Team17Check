@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>第17小隊親證定課打卡系統</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <!-- PWA Support -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="17小隊打卡">
+  <link rel="apple-touch-icon" href="icons/icon.svg">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="manifest" href="manifest.json">
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+  <!-- Confetti.js (Self-contained HTML5 Canvas particles - Non-blocking) -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js" defer></script>
+</head>
+<body class="dark-mode">
+  
+  <!-- App Container -->
+  <div id="app" class="app-container">
+    
+    <!-- Profile Selection Screen (Onboarding overlay) -->
+    <div id="onboarding" class="onboarding-screen">
+      <div class="onboarding-card glass-panel animate-fade-in">
+        <h1 class="onboarding-title">⚡ 第17小隊 ⚡<br><span class="accent-text">定課打卡系統</span></h1>
+        <p class="onboarding-subtitle">請選擇您的成員身份開始修行</p>
+        <div class="user-grid" id="onboardingUserGrid">
+          <!-- Member profile buttons will be dynamically injected here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Main App Layout (Hidden until profile selected) -->
+    <div id="mainLayout" class="main-layout hidden">
+      
+      <!-- Top Sticky Header -->
+      <header class="app-header glass-panel">
+        <div class="header-profile">
+          <div class="avatar" id="headerAvatar">--</div>
+          <div class="user-meta">
+            <h2 class="user-name" id="headerUserName">讀取中...</h2>
+            <p class="role-badge" id="headerUserRole">音柱 • 宇髄天元</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button id="switchProfileBtn" class="icon-btn" title="切換身分">👤</button>
+        </div>
+      </header>
+
+      <!-- Main Contents Scroll Area -->
+      <main class="app-main-content">
+        
+        <!-- Tab 1: Check-in Panel -->
+        <section id="tabCheckIn" class="tab-panel active">
+          
+          <!-- Horizontal Week Strip -->
+          <div class="week-strip-container">
+            <button id="prevWeekBtn" class="nav-arrow-btn">◀</button>
+            <div class="week-strip" id="weekStrip">
+              <!-- Dynamically populated 7 days strip -->
+            </div>
+            <button id="nextWeekBtn" class="nav-arrow-btn">▶</button>
+          </div>
+
+          <!-- Active Day Details Card -->
+          <div class="day-details-card glass-panel animate-slide-up">
+            <div class="day-header">
+              <div class="day-titles">
+                <h3 class="solar-date" id="activeSolarDate">2026年6月1日 (一)</h3>
+                <span class="lunar-date" id="activeLunarDate">農曆五月初一</span>
+              </div>
+              <button id="openCalendarModalBtn" class="calendar-shortcut-btn" title="打開月曆">📅</button>
+            </div>
+            
+            <!-- Special Date Banner (e.g. 課後課, 截止日, 畢業典禮) -->
+            <div id="specialDateBanner" class="special-banner hidden">
+              <span class="banner-icon">📢</span>
+              <span class="banner-text" id="specialDateText">今日特別公告：課後課 - 格萊天漾14F</span>
+            </div>
+
+            <!-- Progress Ring Tracker -->
+            <div class="today-progress-container">
+              <div class="progress-info">
+                <span class="progress-label">今日完成度</span>
+                <span class="progress-percent" id="progressPercentText">0%</span>
+              </div>
+              <div class="progress-bar-outer">
+                <div class="progress-bar-inner" id="progressBarInner" style="width: 0%"></div>
+              </div>
+            </div>
+
+            <!-- Tasks Checklist Area -->
+            <div class="tasks-checklist" id="tasksChecklist">
+              <!-- Dynamically rendered checkbox items -->
+            </div>
+            
+            <!-- LINE Report Actions -->
+            <div class="action-box">
+              <button id="copyLineBtn" class="btn btn-primary btn-block ripple">
+                <span class="btn-icon">📋</span> 一鍵複製 LINE 群打卡文字
+              </button>
+              <div id="toastMessage" class="toast hidden">複製成功！已複製至剪貼簿，可直接貼上至 LINE 群組！</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Tab 2: Statistics & Penalities Dashboard -->
+        <section id="tabStats" class="tab-panel">
+          <div class="stats-dashboard animate-slide-up">
+            
+            <h3 class="section-title">📊 定課修行數據儀表板</h3>
+            
+            <!-- Stats Dashboard Cards Grid -->
+            <div class="stats-cards-grid">
+              
+              <div class="stat-card glass-panel border-glow-pink">
+                <div class="stat-icon">🔥</div>
+                <div class="stat-value" id="statsCurrentStreak">0 <span class="stat-unit">天</span></div>
+                <div class="stat-label">當前連續打卡</div>
+                <div class="stat-sub" id="statsMaxStreakText">歷史最高: 0 天</div>
+              </div>
+              
+              <div class="stat-card glass-panel border-glow-gold">
+                <div class="stat-icon">💰</div>
+                <div class="stat-value" id="statsPenaltiesSaved">$0</div>
+                <div class="stat-label">已省下拳法罰金</div>
+                <div class="stat-sub">陰陽拳每次省 $50</div>
+              </div>
+
+              <div class="stat-card glass-panel border-glow-blue">
+                <div class="stat-icon">📈</div>
+                <div class="stat-value" id="statsCompletionRate">0%</div>
+                <div class="stat-label">總定課完成率</div>
+                <div class="stat-sub" id="statsCheckedDaysCount">累計打卡天數: 0天</div>
+              </div>
+            </div>
+
+            <!-- Character Role Feature Highlights -->
+            <div class="role-highlight-box glass-panel animate-fade-in">
+              <div class="role-highlight-header">
+                <span class="role-badge-large" id="statsRoleBadge">音柱</span>
+                <h4 id="statsCharName">宇髄天元 專屬印記</h4>
+              </div>
+              <p class="role-quote" id="statsRoleQuote">「華麗地打卡吧！這就是音之呼吸的藝術！」</p>
+              <div class="hidden-task-highlight">
+                <span class="highlight-label">隱藏修行任務：</span>
+                <span class="highlight-value" id="statsHiddenTaskName">大笑功法 2分鐘</span>
+              </div>
+            </div>
+
+            <!-- Custom Tasks Management Card -->
+            <div class="sync-card glass-panel" style="border-left: 4px solid var(--success)">
+              <h4 style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span>🛠️ 自訂任務管理 (最多 5 個)</span>
+                <span class="badge" id="customTasksCountBadge" style="font-size: 11px; background: rgba(255,255,255,0.08); padding: 1px 6px; border-radius: 4px;">0/5</span>
+              </h4>
+              <p class="sync-description" style="margin-bottom: 12px;">您可以為自己新增專屬的每日任務。新任務會自動出現在您設定的日期區間中。</p>
+              
+              <!-- Custom Tasks List -->
+              <div id="customTasksList" class="custom-tasks-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;">
+                <!-- Dynamically populated custom tasks list -->
+              </div>
+              
+              <!-- Custom Task Create Form -->
+              <div id="addCustomTaskForm" class="add-custom-task-form" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 12px; display: none; flex-direction: column; gap: 10px; margin-bottom: 12px;">
+                <div class="form-group" style="display: flex; flex-direction: column; gap: 4px;">
+                  <label style="font-size: 12px; color: var(--text-secondary); font-weight: 600;">任務名稱</label>
+                  <input type="text" id="customTaskNameInput" class="styled-input" placeholder="請輸入任務名稱 (如：核心運動 20分)" style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 8px; color: #fff; font-size: 13px;">
+                </div>
+                <div class="form-group" style="display: flex; flex-direction: column; gap: 4px;">
+                  <label style="font-size: 12px; color: var(--text-secondary); font-weight: 600;">套用模式</label>
+                  <select id="customTaskModeSelect" class="styled-select" style="width: 100%; text-align: left; padding: 8px;">
+                    <option value="today-onwards">從今天起往後套用 (至 8/21 畢業)</option>
+                    <option value="custom-range">自訂日期區間</option>
+                  </select>
+                </div>
+                <div class="form-group date-range-group" id="customTaskDateRangeGroup" style="display: none; gap: 10px;">
+                  <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                    <label style="font-size: 11px; color: var(--text-secondary); font-weight: 600;">開始日期</label>
+                    <input type="date" id="customTaskStartInput" class="styled-input" style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 8px; color: #fff; font-size: 12px; width: 100%;">
+                  </div>
+                  <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                    <label style="font-size: 11px; color: var(--text-secondary); font-weight: 600;">結束日期</label>
+                    <input type="date" id="customTaskEndInput" class="styled-input" style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 8px; color: #fff; font-size: 12px; width: 100%;">
+                  </div>
+                </div>
+                <div class="form-buttons" style="display: flex; gap: 8px; margin-top: 5px;">
+                  <button id="cancelAddCustomTaskBtn" class="btn btn-secondary" style="flex: 1; padding: 8px; font-size: 12px;">取消</button>
+                  <button id="saveCustomTaskBtn" class="btn btn-primary" style="flex: 1; padding: 8px; font-size: 12px;">確認新增</button>
+                </div>
+              </div>
+              
+              <button id="showAddCustomTaskBtn" class="btn btn-block" style="background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.2); color: #34d399; font-size: 13px; padding: 10px; cursor: pointer;">
+                ➕ 新增自訂每日任務
+              </button>
+            </div>
+
+            <!-- Data Synchronization & Settings Card -->
+            <div class="sync-card glass-panel">
+              <h4>💾 數據儲存與備份</h4>
+              <p class="sync-description">本打卡系統採用本地儲存技術。為避免因更換手機、瀏覽器快取清除導致打卡紀錄遺失，建議定期進行備份。</p>
+              <div class="sync-buttons">
+                <button id="exportDataBtn" class="btn btn-secondary">📥 備份數據 (JSON)</button>
+                <button id="importDataBtn" class="btn btn-secondary">📤 還原數據</button>
+                <input type="file" id="importFileInput" class="hidden" accept=".json">
+              </div>
+              <div class="danger-zone">
+                <button id="clearDataBtn" class="btn btn-danger-text">⚠️ 重設所有打卡數據</button>
+              </div>
+            </div>
+            
+          </div>
+        </section>
+
+        <!-- Tab 3: Monthly History Grid View -->
+        <section id="tabHistory" class="tab-panel">
+          <div class="history-container animate-slide-up">
+            
+            <div class="history-header">
+              <h3 class="section-title">📅 定課打卡月曆</h3>
+              <div class="month-filter-container">
+                <select id="historyMonthSelect" class="styled-select">
+                  <option value="5">2026年 5月</option>
+                  <option value="6">2026年 6月</option>
+                  <option value="7">2026年 7月</option>
+                  <option value="8">2026年 8月</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Month Calendar Grid Card -->
+            <div class="calendar-card glass-panel">
+              <div class="calendar-weekday-header">
+                <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+              </div>
+              <div class="calendar-days-grid" id="historyDaysGrid">
+                <!-- Dynamically populated monthly grids -->
+              </div>
+            </div>
+
+            <!-- Calendar Dot Legends -->
+            <div class="legend-panel glass-panel">
+              <div class="legend-item"><span class="dot dot-success"></span> 100% 定課完成</div>
+              <div class="legend-item"><span class="dot dot-partial"></span> 部分定課完成</div>
+              <div class="legend-item"><span class="dot dot-missed"></span> 漏打卡 (陰陽拳未完成)</div>
+              <div class="legend-item"><span class="dot dot-empty"></span> 未打卡 / 未開始</div>
+            </div>
+
+          </div>
+        </section>
+
+      </main>
+
+      <!-- Bottom Tab Navigation Bar -->
+      <footer class="app-nav-bar glass-panel">
+        <button class="nav-item active" data-tab="tabCheckIn">
+          <span class="nav-icon">🥊</span>
+          <span class="nav-text">今日打卡</span>
+        </button>
+        <button class="nav-item" data-tab="tabStats">
+          <span class="nav-icon">📊</span>
+          <span class="nav-text">數據統計</span>
+        </button>
+        <button class="nav-item" data-tab="tabHistory">
+          <span class="nav-icon">📅</span>
+          <span class="nav-text">歷史月曆</span>
+        </button>
+      </footer>
+
+    </div>
+
+    <!-- Fullscreen Calendar Selection Modal -->
+    <div id="calendarModal" class="modal-overlay hidden">
+      <div class="modal-content glass-panel animate-zoom-in">
+        <div class="modal-header">
+          <h3>選擇打卡日期</h3>
+          <button id="closeCalendarModalBtn" class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="month-selector-modal">
+            <button id="modalPrevMonth" class="modal-nav-btn">◀</button>
+            <span id="modalMonthTitle" class="modal-month-title">2026年 6月</span>
+            <button id="modalNextMonth" class="modal-nav-btn">▶</button>
+          </div>
+          <div class="calendar-weekday-header">
+            <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+          </div>
+          <div class="calendar-days-grid" id="modalDaysGrid">
+            <!-- Modal calendar grid -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Load Data and Core Application Logic -->
+  <script src="js/member_data.js"></script>
+  <script src="js/calendar_data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

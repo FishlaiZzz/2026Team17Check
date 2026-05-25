@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6" />
+      <stop offset="50%" stop-color="#8b5cf6" />
+      <stop offset="100%" stop-color="#ec4899" />
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="128" fill="#090a0f" />
+  <!-- Glowing border -->
+  <rect x="8" y="8" width="496" height="496" rx="120" fill="none" stroke="url(#glow)" stroke-width="12" opacity="0.8" />
+  <!-- Team number 17 -->
+  <text x="256" y="250" font-family="'Outfit', sans-serif" font-size="160" font-weight="bold" fill="url(#glow)" text-anchor="middle" dominant-baseline="middle">17</text>
+  <!-- Description text -->
+  <text x="256" y="340" font-family="'Noto Sans TC', sans-serif" font-size="28" font-weight="600" fill="#9ca3af" text-anchor="middle" letter-spacing="4">定課打卡</text>
+  <!-- Checkmark icon -->
+  <circle cx="256" cy="420" r="36" fill="#10b981" />
+  <path d="M238 420 l12 12 l24 -24" stroke="#ffffff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+</svg>

@@ -1,0 +1,18 @@
+{
+  "name": "第17小隊親證定課打卡系統",
+  "short_name": "17小隊打卡",
+  "description": "第六大隊第17小隊專屬親證班行事曆定課打卡系統",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#090a0f",
+  "theme_color": "#090a0f",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    }
+  ]
+}
