@@ -2,7 +2,7 @@
  * PWA Service Worker - 離線快取與安裝控制
  */
 
-const CACHE_NAME = '17checkin-v1';
+const CACHE_NAME = '17checkin-v2';
 const ASSETS_TO_CACHE = [
   'index.html',
   'manifest.json',
