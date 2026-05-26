@@ -356,9 +356,8 @@ body {
 }
 
 .week-day-btn .day-lunar {
-  font-size: 8px;
+  font-size: 11px;
   color: var(--text-muted);
-  transform: scale(0.9);
 }
 
 .week-day-btn.active {
@@ -946,6 +945,25 @@ body {
   outline: none;
 }
 
+.styled-input {
+  background: var(--bg-panel-rgba);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.styled-input:focus, .styled-select:focus {
+  border-color: var(--primary-accent);
+  box-shadow: 0 0 8px var(--primary-accent-glow);
+}
+
 .calendar-card {
   padding: 16px;
   margin-bottom: 15px;
@@ -999,9 +1017,8 @@ body {
 }
 
 .calendar-day-cell .cell-note {
-  font-size: 7px;
+  font-size: 11px;
   color: var(--text-muted);
-  transform: scale(0.85);
   text-align: center;
   white-space: nowrap;
   max-width: 90%;

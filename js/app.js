@@ -9,7 +9,10 @@ const state = {
   checkInHistory: {},      // 打卡歷史資料庫 (存儲於 LocalStorage)
   customTasks: [],         // 使用者自訂每日任務清單
   modalMonth: 5,           // 月曆 Modal 的月份 (5, 6, 7, 8)
-  modalYear: 2026          // 月曆 Modal 的年份
+  modalYear: 2026,         // 月曆 Modal 的年份
+  reportDate: "2026-05-01",// 報表選中日期 YYYY-MM-DD
+  reportWeekIdx: 0,        // 報表選中週別 index
+  reportMonth: 5           // 報表選中月份
 };
 
 // 選擇 DOM 元素
@@ -115,6 +118,12 @@ function initApp() {
 
   // 4. 註冊 UI 事件監聽
   setupEventListeners();
+
+  // 4.5 初始化報表選單選項與初始值
+  populateWeeklySelect();
+  state.reportDate = state.activeDate;
+  state.reportWeekIdx = getWeekIndexForDate(state.activeDate);
+  state.reportMonth = parseInt(state.activeDate.split("-")[1]);
 
   // 5. 註冊 PWA Service Worker 離線快取
   if ('serviceWorker' in navigator) {
@@ -284,9 +293,9 @@ function setupEventListeners() {
 
   // 6. 註冊報表子頁籤事件監聽
   const reportTabs = [
-    { btn: "reportTabDailyBtn", panel: "reportDailyContent" },
-    { btn: "reportTabWeeklyBtn", panel: "reportWeeklyContent" },
-    { btn: "reportTabMonthlyBtn", panel: "reportMonthlyContent" }
+    { btn: "reportTabDailyBtn", panel: "reportDailyContent", label: "選擇日期：", showPicker: "reportDailyDatePicker" },
+    { btn: "reportTabWeeklyBtn", panel: "reportWeeklyContent", label: "選擇週別：", showPicker: "reportWeeklyWeekSelect" },
+    { btn: "reportTabMonthlyBtn", panel: "reportMonthlyContent", label: "選擇月份：", showPicker: "reportMonthlyMonthSelect" }
   ];
   
   reportTabs.forEach(t => {
@@ -296,13 +305,51 @@ function setupEventListeners() {
         reportTabs.forEach(ot => {
           document.getElementById(ot.btn).classList.remove("active");
           document.getElementById(ot.panel).style.display = "none";
+          document.getElementById(ot.showPicker).style.display = "none";
         });
         btnEl.classList.add("active");
         document.getElementById(t.panel).style.display = "block";
+        
+        // 顯示對應的選取器與標籤
+        document.getElementById("reportSelectorLabel").textContent = t.label;
+        document.getElementById(t.showPicker).style.display = "block";
+        
         renderReports();
       });
     }
   });
+
+  // 7. 註冊報表選取器的變更事件監聽
+  const reportDailyDatePicker = document.getElementById("reportDailyDatePicker");
+  if (reportDailyDatePicker) {
+    reportDailyDatePicker.addEventListener("change", (e) => {
+      const selectedVal = e.target.value;
+      // 確保選中日期在有效區間內
+      if (selectedVal >= "2026-05-01" && selectedVal <= "2026-08-21") {
+        state.reportDate = selectedVal;
+        renderDailyReport();
+      } else {
+        showToast("⚠️ 請選擇 5/1 至 8/21 之間的有效打卡日期！", "danger");
+        e.target.value = state.reportDate;
+      }
+    });
+  }
+
+  const reportWeeklyWeekSelect = document.getElementById("reportWeeklyWeekSelect");
+  if (reportWeeklyWeekSelect) {
+    reportWeeklyWeekSelect.addEventListener("change", (e) => {
+      state.reportWeekIdx = parseInt(e.target.value) || 0;
+      renderWeeklyReport();
+    });
+  }
+
+  const reportMonthlyMonthSelect = document.getElementById("reportMonthlyMonthSelect");
+  if (reportMonthlyMonthSelect) {
+    reportMonthlyMonthSelect.addEventListener("change", (e) => {
+      state.reportMonth = parseInt(e.target.value) || 5;
+      renderMonthlyReport();
+    });
+  }
 }
 
 // 切換分頁 Tabs
@@ -323,6 +370,21 @@ function switchTab(tabId, activeNavItem) {
   
   // 3. 切換分頁時重新更新數據，避免 LocalStorage 非同步顯示
   if (tabId === "tabStats") {
+    // 當切換到數據統計時，同步報表選取器的值為目前 activeDate 的值
+    state.reportDate = state.activeDate;
+    state.reportWeekIdx = getWeekIndexForDate(state.activeDate);
+    state.reportMonth = parseInt(state.activeDate.split("-")[1]);
+    
+    // 更新對應 DOM 元素的值
+    const datePicker = document.getElementById("reportDailyDatePicker");
+    if (datePicker) datePicker.value = state.reportDate;
+    
+    const weekSelect = document.getElementById("reportWeeklyWeekSelect");
+    if (weekSelect) weekSelect.value = String(state.reportWeekIdx);
+    
+    const monthSelect = document.getElementById("reportMonthlyMonthSelect");
+    if (monthSelect) monthSelect.value = String(state.reportMonth);
+
     updateStatsDashboard();
   } else if (tabId === "tabHistory") {
     // 預設將歷史月曆的選單跟當前選定的月份同步
@@ -398,10 +460,11 @@ function renderActiveDayPanel() {
     let displayTitle = task;
     let tagHtml = "";
     
+    let subtitleHtml = "";
     if (task.includes("陰陽拳")) {
       taskKey = "陰陽拳";
       isChecked = dayRecords[taskKey] || false;
-      tagHtml = `<span class="task-tag" style="background: rgba(239, 68, 68, 0.15); color: #fca5a5">🥊 沒打罰 $50</span>`;
+      tagHtml = ""; // 刪除 "沒打罰 $50"
     } else if (task.includes("五感恩") || task.includes("觀心書")) {
       taskKey = "五感恩_觀心書";
       isChecked = dayRecords[taskKey] || false;
@@ -417,6 +480,15 @@ function renderActiveDayPanel() {
       isWeeklyTask = true;
       isChecked = dayRecords[task] || false;
       tagHtml = `<span class="task-tag">📞 本週任務</span>`;
+      
+      // 週任務專屬子提示文字
+      if (task.includes("天使通話")) {
+        subtitleHtml = `<div class="task-subtitle" style="font-size: 11px; color: var(--text-secondary); margin-top: 4px; font-style: italic;">愛是我講再爛的笑話，你都會笑</div>`;
+      } else if (task.includes("欣賞伙伴") || task.includes("欣賞夥伴")) {
+        subtitleHtml = `<div class="task-subtitle" style="font-size: 11px; color: var(--text-secondary); margin-top: 4px; font-style: italic;">你什麼都可以錯，別錯過我就好</div>`;
+      } else if (task.includes("親證小群分享")) {
+        subtitleHtml = `<div class="task-subtitle" style="font-size: 11px; color: var(--text-secondary); margin-top: 4px; font-style: italic;">想一千次不如努力去試一次</div>`;
+      }
     } else {
       // 特別日子任務 (如：出席課後課、超越顛峰)
       isChecked = dayRecords[task] || false;
@@ -442,6 +514,7 @@ function renderActiveDayPanel() {
       <div class="task-content">
         <div class="task-title">${displayTitle}</div>
         ${tagHtml}
+        ${subtitleHtml}
         ${
           taskKey === "五感恩_觀心書"
             ? `
@@ -1417,13 +1490,13 @@ function renderDailyReport() {
   const container = document.getElementById("reportDailyContent");
   if (!container) return;
   
-  const activeDayData = CALENDAR_DATA.find(d => d.date === state.activeDate);
+  const activeDayData = CALENDAR_DATA.find(d => d.date === state.reportDate);
   if (!activeDayData) return;
   
-  const dayRecords = state.checkInHistory[state.activeDate] || {};
+  const dayRecords = state.checkInHistory[state.reportDate] || {};
   
   // Title
-  const dateObj = new Date(state.activeDate);
+  const dateObj = new Date(state.reportDate);
   const weekdayStr = ["日", "一", "二", "三", "四", "五", "六"][dateObj.getDay()];
   const displayDate = `${activeDayData.month}月${activeDayData.day}日 (${weekdayStr})`;
   
@@ -1441,7 +1514,7 @@ function renderDailyReport() {
   });
   
   state.customTasks.forEach(task => {
-    if (state.activeDate >= task.startDate && state.activeDate <= task.endDate) {
+    if (state.reportDate >= task.startDate && state.reportDate <= task.endDate) {
       totalTasks++;
       if (dayRecords[task.id]) checkedTasks++;
     }
@@ -1472,7 +1545,7 @@ function renderDailyReport() {
       badgeText = "✅ 已完成";
     } else {
       const todayStr = getTodayStr();
-      if (state.activeDate < todayStr) {
+      if (state.reportDate < todayStr) {
         badgeClass = "status-badge-missed";
         badgeText = "❌ 漏打卡";
       }
@@ -1487,10 +1560,10 @@ function renderDailyReport() {
   });
   
   state.customTasks.forEach(task => {
-    if (state.activeDate >= task.startDate && state.activeDate <= task.endDate) {
+    if (state.reportDate >= task.startDate && state.reportDate <= task.endDate) {
       const isChecked = dayRecords[task.id] || false;
-      const badgeClass = isChecked ? "status-badge-done" : (state.activeDate < getTodayStr() ? "status-badge-missed" : "status-badge-pending");
-      const badgeText = isChecked ? "✅ 已完成" : (state.activeDate < getTodayStr() ? "❌ 漏打卡" : "⏳ 進行中");
+      const badgeClass = isChecked ? "status-badge-done" : (state.reportDate < getTodayStr() ? "status-badge-missed" : "status-badge-pending");
+      const badgeText = isChecked ? "✅ 已完成" : (state.reportDate < getTodayStr() ? "❌ 漏打卡" : "⏳ 進行中");
       
       itemsHtml += `
         <div class="daily-status-item">
@@ -1527,13 +1600,9 @@ function renderWeeklyReport() {
   const container = document.getElementById("reportWeeklyContent");
   if (!container) return;
   
-  // Find index of active date in CALENDAR_DATA
-  const activeIdx = CALENDAR_DATA.findIndex(d => d.date === state.activeDate);
-  if (activeIdx === -1) return;
-  
-  const currentDayData = CALENDAR_DATA[activeIdx];
-  const weekday = currentDayData.weekday; // 1=Mon, 7=Sun
-  const startIdx = activeIdx - (weekday - 1);
+  const weeks = getWeeksList();
+  const currentWeek = weeks[state.reportWeekIdx];
+  if (!currentWeek || currentWeek.length === 0) return;
   
   let totalTasksWeek = 0;
   let checkedTasksWeek = 0;
@@ -1541,25 +1610,18 @@ function renderWeeklyReport() {
   let daysCompleted100Count = 0;
   let progressItemsHtml = "";
   
-  let startOfWeekStr = "";
-  let endOfWeekStr = "";
+  const startDay = currentWeek[0];
+  const endDay = currentWeek[currentWeek.length - 1];
   
-  // We iterate through Monday to Sunday
-  for (let i = 0; i < 7; i++) {
-    const dayIdx = startIdx + i;
-    if (dayIdx < 0 || dayIdx >= CALENDAR_DATA.length) continue;
-    
-    const dayData = CALENDAR_DATA[dayIdx];
+  const startParts = startDay.date.split("-");
+  const startOfWeekStr = `${startParts[1]}/${startParts[2]}`;
+  
+  const endParts = endDay.date.split("-");
+  const endOfWeekStr = `${endParts[1]}/${endParts[2]}`;
+  
+  // We iterate through Monday to Sunday of the selected week
+  currentWeek.forEach((dayData, i) => {
     const records = state.checkInHistory[dayData.date] || {};
-    
-    if (i === 0) {
-      const parts = dayData.date.split("-");
-      startOfWeekStr = `${parts[1]}/${parts[2]}`;
-    }
-    if (i === 6) {
-      const parts = dayData.date.split("-");
-      endOfWeekStr = `${parts[1]}/${parts[2]}`;
-    }
     
     let totalTasksDay = dayData.tasks.length;
     let checkedTasksDay = 0;
@@ -1599,7 +1661,7 @@ function renderWeeklyReport() {
       daysCompleted100Count++;
     }
     
-    const dayName = ["一", "二", "三", "四", "五", "六", "日"][i];
+    const dayName = ["一", "二", "三", "四", "五", "六", "日"][dayData.weekday - 1];
     const barColor = dayPercent === 100 ? "var(--success)" : (dayPercent > 0 ? "var(--primary-accent)" : "rgba(255,255,255,0.06)");
     
     progressItemsHtml += `
@@ -1611,7 +1673,7 @@ function renderWeeklyReport() {
         <span class="weekly-percent-label" style="color: ${dayPercent === 100 ? 'var(--success)' : ''}">${dayPercent}%</span>
       </div>
     `;
-  }
+  });
   
   const averagePercent = totalTasksWeek > 0 ? Math.round((checkedTasksWeek / totalTasksWeek) * 100) : 0;
   
@@ -1619,10 +1681,7 @@ function renderWeeklyReport() {
   let weeklyTasksStatusHtml = "";
   const weeklyTaskMap = {};
   
-  for (let i = 0; i < 7; i++) {
-    const dayIdx = startIdx + i;
-    if (dayIdx < 0 || dayIdx >= CALENDAR_DATA.length) continue;
-    const dayData = CALENDAR_DATA[dayIdx];
+  currentWeek.forEach(dayData => {
     const records = state.checkInHistory[dayData.date] || {};
     
     dayData.tasks.forEach(task => {
@@ -1635,7 +1694,7 @@ function renderWeeklyReport() {
         }
       }
     });
-  }
+  });
   
   const weeklyTaskKeys = Object.keys(weeklyTaskMap);
   if (weeklyTaskKeys.length > 0) {
@@ -1671,11 +1730,11 @@ function renderWeeklyReport() {
     </div>
     
     <div class="weekly-summary-grid">
-      <div class="weekly-summary-item" style="border-right: 1px solid rgba(255,255,255,0.08);">
+      <div class="weekly-summary-item" style="border-right: 1px solid rgba(255,255,255,0.08); text-align: center;">
         <span class="monthly-dist-val" style="color: var(--success);">${daysCompleted100Count} 天</span>
         <span class="monthly-dist-lbl">本週 100% 圓滿</span>
       </div>
-      <div class="weekly-summary-item">
+      <div class="weekly-summary-item" style="text-align: center;">
         <span class="monthly-dist-val" style="color: var(--color-gold);">$${penaltiesSavedWeek}</span>
         <span class="monthly-dist-lbl">本週省下罰金</span>
       </div>
@@ -1689,7 +1748,7 @@ function renderMonthlyReport() {
   const container = document.getElementById("reportMonthlyContent");
   if (!container) return;
   
-  const activeMonth = parseInt(state.activeDate.split("-")[1]);
+  const activeMonth = state.reportMonth;
   
   let totalTasksMonth = 0;
   let checkedTasksMonth = 0;
@@ -1845,6 +1904,57 @@ function renderMonthlyReport() {
       </div>
     </div>
   `;
+}
+
+// 獲取以週為單位的日曆天數列表 (週一至週日)
+function getWeeksList() {
+  const weeks = [];
+  let currentWeek = [];
+  
+  CALENDAR_DATA.forEach(day => {
+    if (day.weekday === 1 && currentWeek.length > 0) {
+      weeks.push(currentWeek);
+      currentWeek = [];
+    }
+    currentWeek.push(day);
+  });
+  
+  if (currentWeek.length > 0) {
+    weeks.push(currentWeek);
+  }
+  return weeks;
+}
+
+// 根據日期獲取對應的週別 index
+function getWeekIndexForDate(dateStr) {
+  const weeks = getWeeksList();
+  for (let i = 0; i < weeks.length; i++) {
+    if (weeks[i].some(day => day.date === dateStr)) {
+      return i;
+    }
+  }
+  return 0;
+}
+
+// 動態填充每週下拉選單選項
+function populateWeeklySelect() {
+  const selectEl = document.getElementById("reportWeeklyWeekSelect");
+  if (!selectEl) return;
+  
+  selectEl.innerHTML = "";
+  const weeks = getWeeksList();
+  weeks.forEach((week, idx) => {
+    const startDay = week[0];
+    const endDay = week[week.length - 1];
+    
+    const startStr = `${String(startDay.month).padStart(2, '0')}/${String(startDay.day).padStart(2, '0')}`;
+    const endStr = `${String(endDay.month).padStart(2, '0')}/${String(endDay.day).padStart(2, '0')}`;
+    
+    const option = document.createElement("option");
+    option.value = String(idx);
+    option.textContent = `第 ${idx + 1} 週 (${startStr} - ${endStr})`;
+    selectEl.appendChild(option);
+  });
 }
 
 /* 輔助函式庫 */
