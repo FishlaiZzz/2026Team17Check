@@ -121,9 +121,9 @@
               
               <div class="stat-card glass-panel border-glow-pink">
                 <div class="stat-icon">🔥</div>
-                <div class="stat-value" id="statsCurrentStreak">0 <span class="stat-unit">天</span></div>
-                <div class="stat-label">當前連續打卡</div>
-                <div class="stat-sub" id="statsMaxStreakText">歷史最高: 0 天</div>
+                <div class="stat-value" id="statsCurrentStreak">0 <span class="stat-unit">次</span></div>
+                <div class="stat-label">角色任務打卡</div>
+                <div class="stat-sub" id="statsMaxStreakText">連續最高: 0 天</div>
               </div>
               
               <div class="stat-card glass-panel border-glow-gold">
@@ -138,6 +138,36 @@
                 <div class="stat-value" id="statsCompletionRate">0%</div>
                 <div class="stat-label">總定課完成率</div>
                 <div class="stat-sub" id="statsCheckedDaysCount">累計打卡天數: 0天</div>
+              </div>
+            </div>
+
+            <!-- Practice Data Analysis Report Section -->
+            <div class="report-section glass-panel border-glow-blue animate-fade-in" style="margin-bottom: 20px; padding: 18px 16px;">
+              <h3 class="section-title" style="margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                <span>📈 修行數據分析報表</span>
+              </h3>
+              
+              <!-- Report Tabs Navigation -->
+              <div class="report-sub-tabs" style="display: flex; gap: 8px; background: rgba(0, 0, 0, 0.2); padding: 4px; border-radius: 10px; margin-bottom: 15px;">
+                <button id="reportTabDailyBtn" class="report-sub-tab active">每日</button>
+                <button id="reportTabWeeklyBtn" class="report-sub-tab">每週</button>
+                <button id="reportTabMonthlyBtn" class="report-sub-tab">每月</button>
+              </div>
+              
+              <!-- Report Tabs Content -->
+              <div class="report-content">
+                <!-- Daily Content -->
+                <div id="reportDailyContent" class="report-panel active">
+                  <!-- Dynamically populated daily details -->
+                </div>
+                <!-- Weekly Content -->
+                <div id="reportWeeklyContent" class="report-panel" style="display: none;">
+                  <!-- Dynamically populated weekly details -->
+                </div>
+                <!-- Monthly Content -->
+                <div id="reportMonthlyContent" class="report-panel" style="display: none;">
+                  <!-- Dynamically populated monthly details -->
+                </div>
               </div>
             </div>
 

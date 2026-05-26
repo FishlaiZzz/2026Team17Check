@@ -1186,3 +1186,189 @@ body {
     padding-bottom: calc(10px + env(safe-area-inset-bottom));
   }
 }
+
+/* =======================================================
+   📈 修行數據分析報表樣式 (Interactive Reports Styles)
+   ======================================================= */
+
+.report-sub-tab {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: center;
+}
+
+.report-sub-tab:hover {
+  color: var(--text-primary);
+}
+
+.report-sub-tab.active {
+  background: var(--primary-accent-glow);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.report-panel {
+  display: none;
+  animation: fadeIn 0.3s ease;
+}
+
+.report-panel.active {
+  display: block;
+}
+
+/* 每日分析樣式 */
+.daily-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.daily-status-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.daily-status-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.daily-status-item:last-child {
+  border-bottom: none;
+}
+
+.status-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.status-badge-done {
+  background: rgba(16, 185, 129, 0.15);
+  color: #a7f3d0;
+}
+
+.status-badge-pending {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+}
+
+.status-badge-missed {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+}
+
+/* 每週分析樣式 */
+.weekly-progress-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.weekly-progress-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.weekly-day-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  width: 32px;
+}
+
+.weekly-bar-outer {
+  flex: 1;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.weekly-bar-inner {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.weekly-percent-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  width: 35px;
+  text-align: right;
+}
+
+.weekly-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 15px;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.weekly-summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: center;
+}
+
+/* 每月分析樣式 */
+.monthly-dist-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.monthly-dist-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+  padding: 8px;
+  text-align: center;
+}
+
+.monthly-dist-val {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.monthly-dist-lbl {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.monthly-tasks-analysis {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}

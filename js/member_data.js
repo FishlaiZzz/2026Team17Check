@@ -33,8 +33,8 @@ const MEMBER_DATA = [
     tagline: "為了守護大家，今天也要心跳加速地努力！"
   },
   {
-    id: "lai_zhen_zai",
-    name: "賴貞仔",
+    id: "lai_zhen_yu",
+    name: "賴貞伃",
     role: "戀柱",
     character: "甘露寺蜜璃",
     hiddenTask: "當下之舞 (一首歌)",

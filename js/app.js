@@ -281,6 +281,28 @@ function setupEventListeners() {
 
   // 5. 註冊自訂任務事件監聽
   setupCustomTasksListeners();
+
+  // 6. 註冊報表子頁籤事件監聽
+  const reportTabs = [
+    { btn: "reportTabDailyBtn", panel: "reportDailyContent" },
+    { btn: "reportTabWeeklyBtn", panel: "reportWeeklyContent" },
+    { btn: "reportTabMonthlyBtn", panel: "reportMonthlyContent" }
+  ];
+  
+  reportTabs.forEach(t => {
+    const btnEl = document.getElementById(t.btn);
+    if (btnEl) {
+      btnEl.addEventListener("click", () => {
+        reportTabs.forEach(ot => {
+          document.getElementById(ot.btn).classList.remove("active");
+          document.getElementById(ot.panel).style.display = "none";
+        });
+        btnEl.classList.add("active");
+        document.getElementById(t.panel).style.display = "block";
+        renderReports();
+      });
+    }
+  });
 }
 
 // 切換分頁 Tabs
@@ -851,8 +873,8 @@ function updateStatsDashboard() {
   const stats = calculateStats();
   
   // 1. 更新數值卡片
-  statsCurrentStreakEl.innerHTML = `${stats.currentStreak} <span class="stat-unit">天</span>`;
-  statsMaxStreakTextEl.textContent = `歷史最高: ${stats.maxStreak} 天`;
+  statsCurrentStreakEl.innerHTML = `${stats.roleTaskCheckedCount} <span class="stat-unit">次</span>`;
+  statsMaxStreakTextEl.textContent = `連續最高: ${stats.maxStreak} 天`;
   statsPenaltiesSavedEl.textContent = `$${stats.penaltiesSaved}`;
   statsCompletionRateEl.textContent = `${stats.overallCompletionRate}%`;
   statsCheckedDaysCountEl.textContent = `累計打卡天數: ${stats.checkedDaysCount} 天`;
@@ -863,6 +885,9 @@ function updateStatsDashboard() {
   statsCharNameEl.textContent = `${state.currentUser.character} (${state.currentUser.name})`;
   statsRoleQuoteEl.textContent = `「${state.currentUser.tagline}」`;
   statsHiddenTaskNameEl.textContent = state.currentUser.hiddenTask;
+
+  // 3. 觸發修行數據分析報表渲染
+  renderReports();
 }
 
 // 統計數據核心計算引擎
@@ -871,6 +896,7 @@ function calculateStats() {
   let checkedDaysCount = 0;
   let totalTasksAll = 0;
   let checkedTasksAll = 0;
+  let roleTaskCheckedCount = 0;
   
   // 連續天數計算邏輯：追蹤五感恩每日打卡連續性
   let maxStreak = 0;
@@ -926,15 +952,20 @@ function calculateStats() {
       if (records["陰陽拳"] === true) {
         penaltiesSaved += 50;
       }
+
+      // 統計角色任務打卡總次數
+      if (records["角色任務"] === true) {
+        roleTaskCheckedCount++;
+      }
     }
   });
   
-  // 計算目前的連續打卡天數
+  // 計算角色任務目前的連續打卡天數
   // 我們從「當前選中日期(或今天)」往回推算，若昨天或今天有勾選，即可算連續
   let streakCheckDate = new Date(state.activeDate);
   // 如果勾選了，從當天開始；如果沒勾，從昨天開始
   let activeRecords = state.checkInHistory[state.activeDate];
-  if (!activeRecords || !activeRecords["五感恩_觀心書"]) {
+  if (!activeRecords || !activeRecords["角色任務"]) {
     // 往回一天
     streakCheckDate.setDate(streakCheckDate.getDate() - 1);
   }
@@ -945,9 +976,9 @@ function calculateStats() {
     const d = String(streakCheckDate.getDate()).padStart(2, '0');
     const checkStr = `${y}-${m}-${d}`;
     
-    // 檢查是否有這天的打卡，且五感恩有完成
+    // 檢查是否有這天的打卡，且角色任務有完成
     const records = state.checkInHistory[checkStr];
-    if (records && records["五感恩_觀心書"] === true) {
+    if (records && records["角色任務"] === true) {
       currentStreak++;
       streakCheckDate.setDate(streakCheckDate.getDate() - 1);
     } else {
@@ -955,21 +986,19 @@ function calculateStats() {
     }
   }
   
-  // 計算歷史最高 Streak
-  // 遍歷所有已記錄的五感恩累計天數，找出最大值
+  // 計算角色任務歷史最高連續打卡天數
+  let runningStreak = 0;
   CALENDAR_DATA.forEach(day => {
     const records = state.checkInHistory[day.date];
-    if (records && records["五感恩_觀心書"] === true) {
-      const dayStreak = parseInt(records["五感恩_天數"]) || 1;
-      if (dayStreak > maxStreak) {
-        maxStreak = dayStreak;
+    if (records && records["角色任務"] === true) {
+      runningStreak++;
+      if (runningStreak > maxStreak) {
+        maxStreak = runningStreak;
       }
+    } else {
+      runningStreak = 0; // 斷開連續
     }
   });
-  
-  if (currentStreak > maxStreak) {
-    maxStreak = currentStreak;
-  }
   
   const overallCompletionRate = totalTasksAll > 0 ? Math.round((checkedTasksAll / totalTasksAll) * 100) : 0;
   
@@ -978,7 +1007,8 @@ function calculateStats() {
     maxStreak,
     penaltiesSaved,
     checkedDaysCount,
-    overallCompletionRate
+    overallCompletionRate,
+    roleTaskCheckedCount
   };
 }
 
@@ -1126,7 +1156,17 @@ function exportUserData() {
   const dlAnchorElem = document.createElement('a');
   dlAnchorElem.setAttribute("href", dataStr);
   const username = state.currentUser ? state.currentUser.name : "17小隊";
-  dlAnchorElem.setAttribute("download", `打卡備份_${username}_${state.activeDate}.json`);
+  
+  // 產生 YYYYMMDDHHMM 格式的時間戳記
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const hh = String(now.getHours()).padStart(2, '0');
+  const min = String(now.getMinutes()).padStart(2, '0');
+  const timestamp = `${yyyy}${mm}${dd}${hh}${min}`;
+  
+  dlAnchorElem.setAttribute("download", `打卡備份_${username}_${timestamp}.json`);
   dlAnchorElem.click();
   showToast("📥 打卡紀錄備份下載成功！", "success");
 }
@@ -1345,6 +1385,466 @@ function deleteCustomTask(taskId) {
     
     showToast("🗑️ 已成功刪除自訂任務！", "success");
   }
+}
+
+// =======================================================
+// 📈 修行數據分析報表渲染模組 (Interactive Reports Engine)
+// =======================================================
+
+function renderReports() {
+  const currentSubTab = document.querySelector(".report-sub-tab.active");
+  if (!currentSubTab) return;
+  const tabId = currentSubTab.id;
+  
+  if (tabId === "reportTabDailyBtn") {
+    renderDailyReport();
+  } else if (tabId === "reportTabWeeklyBtn") {
+    renderWeeklyReport();
+  } else if (tabId === "reportTabMonthlyBtn") {
+    renderMonthlyReport();
+  }
+}
+
+function getTodayStr() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function renderDailyReport() {
+  const container = document.getElementById("reportDailyContent");
+  if (!container) return;
+  
+  const activeDayData = CALENDAR_DATA.find(d => d.date === state.activeDate);
+  if (!activeDayData) return;
+  
+  const dayRecords = state.checkInHistory[state.activeDate] || {};
+  
+  // Title
+  const dateObj = new Date(state.activeDate);
+  const weekdayStr = ["日", "一", "二", "三", "四", "五", "六"][dateObj.getDay()];
+  const displayDate = `${activeDayData.month}月${activeDayData.day}日 (${weekdayStr})`;
+  
+  // Calculate completion percentage
+  let totalTasks = activeDayData.tasks.length;
+  let checkedTasks = 0;
+  
+  activeDayData.tasks.forEach(task => {
+    let taskKey = task;
+    if (task.includes("陰陽拳")) taskKey = "陰陽拳";
+    else if (task.includes("五感恩") || task.includes("觀心書")) taskKey = "五感恩_觀心書";
+    else if (task.includes("嗯啊吽") || task.includes("角色任務")) taskKey = "角色任務";
+    
+    if (dayRecords[taskKey]) checkedTasks++;
+  });
+  
+  state.customTasks.forEach(task => {
+    if (state.activeDate >= task.startDate && state.activeDate <= task.endDate) {
+      totalTasks++;
+      if (dayRecords[task.id]) checkedTasks++;
+    }
+  });
+  
+  const percent = totalTasks > 0 ? Math.round((checkedTasks / totalTasks) * 100) : 0;
+  
+  // Status items HTML
+  let itemsHtml = "";
+  activeDayData.tasks.forEach(task => {
+    let taskKey = task;
+    let displayTitle = task;
+    if (task.includes("陰陽拳")) {
+      taskKey = "陰陽拳";
+    } else if (task.includes("五感恩") || task.includes("觀心書")) {
+      taskKey = "五感恩_觀心書";
+    } else if (task.includes("嗯啊吽") || task.includes("角色任務")) {
+      taskKey = "角色任務";
+      displayTitle = state.currentUser.hiddenTask;
+    }
+    
+    const isChecked = dayRecords[taskKey] || false;
+    let badgeClass = "status-badge-pending";
+    let badgeText = "⏳ 進行中";
+    
+    if (isChecked) {
+      badgeClass = "status-badge-done";
+      badgeText = "✅ 已完成";
+    } else {
+      const todayStr = getTodayStr();
+      if (state.activeDate < todayStr) {
+        badgeClass = "status-badge-missed";
+        badgeText = "❌ 漏打卡";
+      }
+    }
+    
+    itemsHtml += `
+      <div class="daily-status-item">
+        <span style="font-weight: 500; color: #fff;">${displayTitle}</span>
+        <span class="status-badge ${badgeClass}">${badgeText}</span>
+      </div>
+    `;
+  });
+  
+  state.customTasks.forEach(task => {
+    if (state.activeDate >= task.startDate && state.activeDate <= task.endDate) {
+      const isChecked = dayRecords[task.id] || false;
+      const badgeClass = isChecked ? "status-badge-done" : (state.activeDate < getTodayStr() ? "status-badge-missed" : "status-badge-pending");
+      const badgeText = isChecked ? "✅ 已完成" : (state.activeDate < getTodayStr() ? "❌ 漏打卡" : "⏳ 進行中");
+      
+      itemsHtml += `
+        <div class="daily-status-item">
+          <span style="font-weight: 500; color: #fff;">[自訂] ${task.name}</span>
+          <span class="status-badge ${badgeClass}">${badgeText}</span>
+        </div>
+      `;
+    }
+  });
+
+  const bannerText = percent === 100 ? "🎉 太棒了！今日定課 100% 圓滿！" : (percent > 0 ? "💪 加油！再接再厲，即將圓滿！" : "🧘 靜心專注，開啟今日的修行吧！");
+  
+  container.innerHTML = `
+    <div class="daily-title-row">
+      <span style="font-size: 15px; font-weight: 700; color: var(--primary-accent);">${displayDate}</span>
+      <span style="font-size: 14px; font-weight: 700; color: #fff;">今日完成度：${percent}%</span>
+    </div>
+    
+    <div class="progress-bar-outer" style="height: 6px; margin-bottom: 15px;">
+      <div class="progress-bar-inner" style="width: ${percent}%; background: linear-gradient(90deg, var(--primary-accent) 0%, #60a5fa 100%);"></div>
+    </div>
+    
+    <div style="font-size: 13px; font-weight: 600; color: #fbbf24; text-align: center; margin-bottom: 12px;">
+      ${bannerText}
+    </div>
+    
+    <div class="daily-status-list">
+      ${itemsHtml}
+    </div>
+  `;
+}
+
+function renderWeeklyReport() {
+  const container = document.getElementById("reportWeeklyContent");
+  if (!container) return;
+  
+  // Find index of active date in CALENDAR_DATA
+  const activeIdx = CALENDAR_DATA.findIndex(d => d.date === state.activeDate);
+  if (activeIdx === -1) return;
+  
+  const currentDayData = CALENDAR_DATA[activeIdx];
+  const weekday = currentDayData.weekday; // 1=Mon, 7=Sun
+  const startIdx = activeIdx - (weekday - 1);
+  
+  let totalTasksWeek = 0;
+  let checkedTasksWeek = 0;
+  let penaltiesSavedWeek = 0;
+  let daysCompleted100Count = 0;
+  let progressItemsHtml = "";
+  
+  let startOfWeekStr = "";
+  let endOfWeekStr = "";
+  
+  // We iterate through Monday to Sunday
+  for (let i = 0; i < 7; i++) {
+    const dayIdx = startIdx + i;
+    if (dayIdx < 0 || dayIdx >= CALENDAR_DATA.length) continue;
+    
+    const dayData = CALENDAR_DATA[dayIdx];
+    const records = state.checkInHistory[dayData.date] || {};
+    
+    if (i === 0) {
+      const parts = dayData.date.split("-");
+      startOfWeekStr = `${parts[1]}/${parts[2]}`;
+    }
+    if (i === 6) {
+      const parts = dayData.date.split("-");
+      endOfWeekStr = `${parts[1]}/${parts[2]}`;
+    }
+    
+    let totalTasksDay = dayData.tasks.length;
+    let checkedTasksDay = 0;
+    
+    dayData.tasks.forEach(task => {
+      let taskKey = task;
+      if (task.includes("陰陽拳")) taskKey = "陰陽拳";
+      else if (task.includes("五感恩") || task.includes("觀心書")) taskKey = "五感恩_觀心書";
+      else if (task.includes("嗯啊吽") || task.includes("角色任務")) taskKey = "角色任務";
+      
+      if (records[taskKey] !== undefined) {
+        totalTasksWeek++;
+        if (records[taskKey] === true) {
+          checkedTasksWeek++;
+          checkedTasksDay++;
+        }
+      }
+    });
+    
+    state.customTasks.forEach(task => {
+      if (dayData.date >= task.startDate && dayData.date <= task.endDate) {
+        totalTasksDay++;
+        totalTasksWeek++;
+        if (records[task.id] === true) {
+          checkedTasksWeek++;
+          checkedTasksDay++;
+        }
+      }
+    });
+    
+    if (records["陰陽拳"] === true) {
+      penaltiesSavedWeek += 50;
+    }
+    
+    const dayPercent = totalTasksDay > 0 ? Math.round((checkedTasksDay / totalTasksDay) * 100) : 0;
+    if (dayPercent === 100) {
+      daysCompleted100Count++;
+    }
+    
+    const dayName = ["一", "二", "三", "四", "五", "六", "日"][i];
+    const barColor = dayPercent === 100 ? "var(--success)" : (dayPercent > 0 ? "var(--primary-accent)" : "rgba(255,255,255,0.06)");
+    
+    progressItemsHtml += `
+      <div class="weekly-progress-item">
+        <span class="weekly-day-label">週${dayName}</span>
+        <div class="weekly-bar-outer">
+          <div class="weekly-bar-inner" style="width: ${dayPercent}%; background: ${barColor};"></div>
+        </div>
+        <span class="weekly-percent-label" style="color: ${dayPercent === 100 ? 'var(--success)' : ''}">${dayPercent}%</span>
+      </div>
+    `;
+  }
+  
+  const averagePercent = totalTasksWeek > 0 ? Math.round((checkedTasksWeek / totalTasksWeek) * 100) : 0;
+  
+  // List weekly tasks and their status
+  let weeklyTasksStatusHtml = "";
+  const weeklyTaskMap = {};
+  
+  for (let i = 0; i < 7; i++) {
+    const dayIdx = startIdx + i;
+    if (dayIdx < 0 || dayIdx >= CALENDAR_DATA.length) continue;
+    const dayData = CALENDAR_DATA[dayIdx];
+    const records = state.checkInHistory[dayData.date] || {};
+    
+    dayData.tasks.forEach(task => {
+      if (task.includes("週任務")) {
+        const isChecked = records[task] || false;
+        if (weeklyTaskMap[task] === undefined) {
+          weeklyTaskMap[task] = isChecked;
+        } else if (isChecked) {
+          weeklyTaskMap[task] = true;
+        }
+      }
+    });
+  }
+  
+  const weeklyTaskKeys = Object.keys(weeklyTaskMap);
+  if (weeklyTaskKeys.length > 0) {
+    weeklyTasksStatusHtml += `
+      <div style="font-size: 13px; font-weight: 700; color: #fff; margin-top: 15px; margin-bottom: 8px;">📞 本週任務完成狀態：</div>
+      <div class="daily-status-list">
+    `;
+    
+    weeklyTaskKeys.forEach(task => {
+      const isChecked = weeklyTaskMap[task];
+      const badgeClass = isChecked ? "status-badge-done" : "status-badge-pending";
+      const badgeText = isChecked ? "✅ 已完成" : "⏳ 進行中";
+      
+      weeklyTasksStatusHtml += `
+        <div class="daily-status-item">
+          <span style="font-weight: 500; color: #fff;">${task}</span>
+          <span class="status-badge ${badgeClass}">${badgeText}</span>
+        </div>
+      `;
+    });
+    
+    weeklyTasksStatusHtml += `</div>`;
+  }
+  
+  container.innerHTML = `
+    <div class="daily-title-row" style="margin-bottom: 12px;">
+      <span style="font-size: 14px; font-weight: 700; color: var(--primary-accent);">本週區間：${startOfWeekStr} - ${endOfWeekStr}</span>
+      <span style="font-size: 14px; font-weight: 700; color: #fff;">週平均完成率：${averagePercent}%</span>
+    </div>
+    
+    <div class="weekly-progress-list">
+      ${progressItemsHtml}
+    </div>
+    
+    <div class="weekly-summary-grid">
+      <div class="weekly-summary-item" style="border-right: 1px solid rgba(255,255,255,0.08);">
+        <span class="monthly-dist-val" style="color: var(--success);">${daysCompleted100Count} 天</span>
+        <span class="monthly-dist-lbl">本週 100% 圓滿</span>
+      </div>
+      <div class="weekly-summary-item">
+        <span class="monthly-dist-val" style="color: var(--color-gold);">$${penaltiesSavedWeek}</span>
+        <span class="monthly-dist-lbl">本週省下罰金</span>
+      </div>
+    </div>
+    
+    ${weeklyTasksStatusHtml}
+  `;
+}
+
+function renderMonthlyReport() {
+  const container = document.getElementById("reportMonthlyContent");
+  if (!container) return;
+  
+  const activeMonth = parseInt(state.activeDate.split("-")[1]);
+  
+  let totalTasksMonth = 0;
+  let checkedTasksMonth = 0;
+  let penaltiesSavedMonth = 0;
+  
+  let successDays = 0;
+  let partialDays = 0;
+  let missedDays = 0;
+  
+  // Category-specific tasks completion rate
+  let yinyangTotal = 0;
+  let yinyangDone = 0;
+  let gratitudeTotal = 0;
+  let gratitudeDone = 0;
+  let roleTotal = 0;
+  let roleDone = 0;
+  
+  CALENDAR_DATA.forEach(day => {
+    if (day.month !== activeMonth) return;
+    
+    const dateStr = day.date;
+    const records = state.checkInHistory[dateStr] || {};
+    
+    let totalTasksDay = day.tasks.length;
+    let checkedTasksDay = 0;
+    let hasRecord = false;
+    
+    day.tasks.forEach(task => {
+      let taskKey = task;
+      if (task.includes("陰陽拳")) taskKey = "陰陽拳";
+      else if (task.includes("五感恩") || task.includes("觀心書")) taskKey = "五感恩_觀心書";
+      else if (task.includes("嗯啊吽") || task.includes("角色任務")) taskKey = "角色任務";
+      
+      if (records[taskKey] !== undefined) {
+        hasRecord = true;
+        totalTasksMonth++;
+        if (records[taskKey] === true) {
+          checkedTasksMonth++;
+          checkedTasksDay++;
+        }
+        
+        // Category specific counting
+        if (taskKey === "陰陽拳") {
+          yinyangTotal++;
+          if (records[taskKey] === true) yinyangDone++;
+        } else if (taskKey === "五感恩_觀心書") {
+          gratitudeTotal++;
+          if (records[taskKey] === true) gratitudeDone++;
+        } else if (taskKey === "角色任務") {
+          roleTotal++;
+          if (records[taskKey] === true) roleDone++;
+        }
+      }
+    });
+    
+    state.customTasks.forEach(task => {
+      if (dateStr >= task.startDate && dateStr <= task.endDate) {
+        totalTasksDay++;
+        if (records[task.id] !== undefined) {
+          hasRecord = true;
+          totalTasksMonth++;
+          if (records[task.id] === true) {
+            checkedTasksMonth++;
+            checkedTasksDay++;
+          }
+        }
+      }
+    });
+    
+    if (records["陰陽拳"] === true) {
+      penaltiesSavedMonth += 50;
+    }
+    
+    if (hasRecord) {
+      const dayPercent = totalTasksDay > 0 ? Math.round((checkedTasksDay / totalTasksDay) * 100) : 0;
+      const missedStatus = getDayCheckInStatusClass(dateStr);
+      if (missedStatus === "dot-missed") {
+        missedDays++;
+      } else if (dayPercent === 100) {
+        successDays++;
+      } else if (dayPercent > 0) {
+        partialDays++;
+      }
+    }
+  });
+  
+  const averagePercent = totalTasksMonth > 0 ? Math.round((checkedTasksMonth / totalTasksMonth) * 100) : 0;
+  
+  const yinyangPercent = yinyangTotal > 0 ? Math.round((yinyangDone / yinyangTotal) * 100) : 0;
+  const gratitudePercent = gratitudeTotal > 0 ? Math.round((gratitudeDone / gratitudeTotal) * 100) : 0;
+  const rolePercent = roleTotal > 0 ? Math.round((roleDone / roleTotal) * 100) : 0;
+  
+  container.innerHTML = `
+    <div class="daily-title-row" style="margin-bottom: 12px;">
+      <span style="font-size: 14px; font-weight: 700; color: var(--primary-accent);">當前月份：2026年 ${activeMonth} 月</span>
+      <span style="font-size: 14px; font-weight: 700; color: #fff;">月平均完成率：${averagePercent}%</span>
+    </div>
+    
+    <div class="monthly-dist-grid">
+      <div class="monthly-dist-card" style="border-bottom: 3px solid var(--success);">
+        <div class="monthly-dist-val" style="color: var(--success);">${successDays}天</div>
+        <div class="monthly-dist-lbl">🟢 100% 圓滿</div>
+      </div>
+      <div class="monthly-dist-card" style="border-bottom: 3px solid var(--warning);">
+        <div class="monthly-dist-val" style="color: var(--warning);">${partialDays}天</div>
+        <div class="monthly-dist-lbl">🟡 部分完成</div>
+      </div>
+      <div class="monthly-dist-card" style="border-bottom: 3px solid var(--danger);">
+        <div class="monthly-dist-val" style="color: var(--danger);">${missedDays}天</div>
+        <div class="monthly-dist-lbl">🔴 漏打卡天</div>
+      </div>
+    </div>
+    
+    <div style="font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 8px;">📊 核心定課完成率分析：</div>
+    
+    <div class="monthly-tasks-analysis">
+      <!-- 陰陽拳 -->
+      <div class="weekly-progress-item">
+        <span class="weekly-day-label" style="width: 60px;">🥊 陰陽拳</span>
+        <div class="weekly-bar-outer">
+          <div class="weekly-bar-inner" style="width: ${yinyangPercent}%; background: var(--danger);"></div>
+        </div>
+        <span class="weekly-percent-label" style="color: var(--danger); width: 35px;">${yinyangPercent}%</span>
+      </div>
+      
+      <!-- 五感恩 -->
+      <div class="weekly-progress-item">
+        <span class="weekly-day-label" style="width: 60px;">📝 五感恩</span>
+        <div class="weekly-bar-outer">
+          <div class="weekly-bar-inner" style="width: ${gratitudePercent}%; background: var(--success);"></div>
+        </div>
+        <span class="weekly-percent-label" style="color: var(--success); width: 35px;">${gratitudePercent}%</span>
+      </div>
+      
+      <!-- 角色任務 -->
+      <div class="weekly-progress-item">
+        <span class="weekly-day-label" style="width: 60px;">🧘 角色任務</span>
+        <div class="weekly-bar-outer">
+          <div class="weekly-bar-inner" style="width: ${rolePercent}%; background: var(--primary-accent);"></div>
+        </div>
+        <span class="weekly-percent-label" style="color: var(--primary-accent); width: 35px;">${rolePercent}%</span>
+      </div>
+    </div>
+    
+    <div class="weekly-summary-grid" style="margin-top: 15px;">
+      <div class="weekly-summary-item" style="border-right: 1px solid rgba(255,255,255,0.08); text-align: center;">
+        <span class="monthly-dist-val" style="color: var(--color-gold); font-size: 18px;">$${penaltiesSavedMonth}</span>
+        <span class="monthly-dist-lbl">當月省下罰金</span>
+      </div>
+      <div class="weekly-summary-item" style="text-align: center;">
+        <span class="monthly-dist-val" style="color: #fff; font-size: 18px;">${successDays + partialDays} 天</span>
+        <span class="monthly-dist-lbl">累計打卡天數</span>
+      </div>
+    </div>
+  `;
 }
 
 /* 輔助函式庫 */
